@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Even Split</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --ink: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #0ea5a4;
+    --accent-dark: #0f766e;
+    --halfA: #fcd34d;
+    --halfB: #f59e0b;
+    --cut: #111827;
+    --good: #16a34a;
+    --bad: #dc2626;
+    --shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220;
+      --card: #111a2b;
+      --ink: #e5e7eb;
+      --muted: #9aa4b2;
+      --line: #243149;
+      --cut: #f8fafc;
+      --shadow: 0 1px 3px rgba(0,0,0,.5);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px;
+  }
+  .app { width: 100%; max-width: 440px; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand h1 {
+    margin: 0; font-size: 26px; letter-spacing: .5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .brand .puzzle { font-size: 13px; color: var(--muted); }
+  .iconbtns { display: flex; gap: 6px; }
+  .iconbtn {
+    border: none; background: var(--card); color: var(--ink);
+    width: 38px; height: 38px; border-radius: 10px; font-size: 18px;
+    box-shadow: var(--shadow); cursor: pointer;
+  }
+  .iconbtn:active { transform: scale(.94); }
+
+  .datenav { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px; }
+  .navbtn {
+    background: var(--card); border: none; box-shadow: var(--shadow); color: var(--ink);
+    width: 30px; height: 30px; border-radius: 8px; font-size: 18px; cursor: pointer; line-height: 1;
+  }
+  .navbtn:active { transform: scale(.92); }
+  .navbtn:disabled { opacity: .3; cursor: default; transform: none; }
+  .datelabel { font-size: 14px; font-weight: 600; min-width: 180px; text-align: center; }
+  .datelabel .today { color: var(--accent-dark); }
+
+  .shapeName { text-align: center; font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+  .shapeName b { color: var(--ink); }
+
+  .stage {
+    background: var(--card); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 10px; position: relative;
+  }
+  canvas { width: 100%; height: auto; display: block; touch-action: none; border-radius: 10px; }
+  .hint {
+    position: absolute; left: 0; right: 0; bottom: 16px; text-align: center;
+    font-size: 13px; color: var(--muted); pointer-events: none; transition: opacity .2s;
+  }
+
+  .result { margin: 12px 0 10px; text-align: center; min-height: 64px; }
+  .ratio { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+  .ratio .sep { color: var(--muted); margin: 0 6px; font-weight: 400; }
+  .verdict { font-size: 15px; font-weight: 600; margin-top: 2px; }
+  .verdict.good { color: var(--good); }
+  .verdict.bad { color: var(--bad); }
+  .subnote { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .actions { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; border: none; border-radius: 12px; padding: 12px 10px;
+    font-size: 15px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow);
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-ghost { background: var(--card); color: var(--ink); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; transform: none; }
+
+  .setup { max-width: 360px; margin: 36px auto 0; text-align: center; padding: 0 6px; }
+  .setup h2 { font-size: 24px; margin: 0 0 10px; }
+  .setup p { font-size: 14px; color: var(--muted); line-height: 1.55; margin: 0 0 4px; }
+  .setlabel { display: block; text-align: left; font-size: 11px; letter-spacing: .6px; color: var(--muted); margin: 22px 0 6px; font-weight: 700; }
+  .setup select {
+    width: 100%; padding: 12px; font-size: 15px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .sethint { font-size: 12px; color: var(--accent-dark); margin: 8px 0 18px; min-height: 30px; }
+  .setup .btn { width: 100%; }
+  .setnote { font-size: 12px; margin-top: 14px; }
+
+  /* tabs */
+  .tabs { display: flex; margin-top: 16px; border-bottom: 1px solid var(--line); }
+  .tab {
+    flex: 1; background: none; border: none; padding: 10px 0; font-size: 13px;
+    font-weight: 700; letter-spacing: .6px; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+  .pane .card { margin-top: 12px; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 8px 14px 6px; }
+  .pane .card h2 { margin: 4px 0 4px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+  .pane .card h2 .count { color: var(--muted); font-weight: 400; font-size: 12px; }
+
+  /* daily leaderboard rows */
+  .lbrow { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  .lbrow:last-child { border-bottom: none; }
+  .lbrow .rank { width: 26px; text-align: center; font-weight: 700; color: var(--muted); font-size: 14px; }
+  .lbrow .nm { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lbrow .sc { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .lbrow .sc .sep { color: var(--muted); font-weight: 400; }
+  .lbrow.me { background: rgba(14,165,164,.12); border-radius: 8px; }
+  .lbempty { color: var(--muted); font-size: 14px; text-align: center; padding: 18px 0; }
+
+  /* overall standings table */
+  .otable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .otable th {
+    text-align: right; font-size: 11px; color: var(--muted); font-weight: 600;
+    padding: 4px 5px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  .otable th.l, .otable td.l { text-align: left; }
+  .otable td { text-align: right; padding: 7px 5px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .otable tbody tr:last-child td { border-bottom: none; }
+  .otable td.pnm { font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .otable td.pts { font-weight: 700; }
+  .otable tr.me td { background: rgba(14,165,164,.12); }
+  .otable tr.me td.l:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+  .otable .rk { color: var(--muted); }
+
+  .scorehelp { font-size: 11px; color: var(--muted); margin: 8px 2px 2px; line-height: 1.5; }
+
+  .countdown { text-align: center; font-size: 12px; color: var(--muted); margin-top: 16px; }
+  .countdown b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* Overall standings — full-screen view */
+  .screen {
+    position: fixed; inset: 0; background: var(--bg); z-index: 70;
+    display: none; overflow-y: auto; padding: 12px;
+  }
+  .screen.show { display: block; }
+  .screen-inner { width: 100%; max-width: 440px; margin: 0 auto; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50;
+  }
+  .overlay.show { display: flex; }
+  .modal {
+    background: var(--card); color: var(--ink); border-radius: 16px;
+    width: 100%; max-width: 400px; max-height: 86vh; overflow-y: auto;
+    padding: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  }
+  .modal h2 { margin: 0 0 10px; font-size: 19px; }
+  .modal p, .modal li { font-size: 14px; line-height: 1.5; color: var(--ink); }
+  .modal .muted { color: var(--muted); }
+  .closebar { display: flex; justify-content: flex-end; }
+  .x { border: none; background: transparent; font-size: 22px; color: var(--muted); cursor: pointer; line-height: 1; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 80;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Even Split</h1>
+      <span class="puzzle" id="puzzleNo">#—</span>
+    </div>
+    <div class="iconbtns">
+      <button class="iconbtn" id="btnHelp" title="How to play">❓</button>
+    </div>
+  </header>
+
+  <div class="datenav">
+    <button class="navbtn" id="navPrev" title="Previous day">‹</button>
+    <span class="datelabel" id="dateLabel">…</span>
+    <button class="navbtn" id="navNext" title="Next day">›</button>
+  </div>
+
+  <div class="shapeName">Cut the shape into two <b>equal halves</b></div>
+
+  <div class="stage">
+    <canvas id="board" width="640" height="640"></canvas>
+    <div class="hint" id="hint">Drag a straight line across the shape ✂️</div>
+  </div>
+
+  <div class="result" id="result"></div>
+
+  <div class="actions">
+    <button class="btn btn-ghost" id="btnRetry" disabled>Practice again</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabDaily">DAILY</button>
+    <button class="tab" id="tabOverall">OVERALL</button>
+  </div>
+
+  <div class="pane" id="paneDaily">
+    <div class="card">
+      <h2><span id="dailyDate">Today</span> <span class="count" id="lbCount"></span></h2>
+      <div id="lb"></div>
+    </div>
+  </div>
+
+  <div class="countdown">Next puzzle in <b id="cd">—</b></div>
+</div>
+
+<!-- Overall standings — grows to full screen -->
+<div class="screen" id="overallScreen">
+  <div class="screen-inner">
+    <header>
+      <div class="brand"><h1>Even Split</h1><span class="puzzle" id="ovPuzzleNo">#—</span></div>
+      <button class="iconbtn" id="ovClose" title="Back to puzzle">✕</button>
+    </header>
+    <div class="tabs">
+      <button class="tab" id="ovTabDaily">DAILY</button>
+      <button class="tab active">OVERALL</button>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h2>Overall standings</h2>
+      <div id="overall"></div>
+      <div class="scorehelp" id="scoreHelp"></div>
+    </div>
+  </div>
+</div>
+
+<!-- First-opener setup -->
+<div class="screen" id="setupScreen">
+  <div class="screen-inner">
+    <header><div class="brand"><h1>Even Split</h1></div></header>
+    <div class="setup">
+      <h2>Even Split ✂️</h2>
+      <p>You're the first to open this. Pick when the daily puzzle resets each day — everyone in the chat will follow your choice.</p>
+      <label class="setlabel" for="tzSelect">RESET AT MIDNIGHT IN</label>
+      <select id="tzSelect"></select>
+      <p class="sethint" id="tzHint"></p>
+      <button class="btn btn-primary" id="startDaily">Start the daily</button>
+      <p class="setnote">This locks once set, so the leaderboards stay consistent for the whole group.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="overlay" id="ovHelp">
+  <div class="modal">
+    <div class="closebar"><button class="x" data-close>×</button></div>
+    <h2>How to play ✂️</h2>
+    <p>A new shape appears every day. Make <b>one straight cut</b> to divide it into two halves that are as <b>equal in area</b> as possible.</p>
+    <ul>
+      <li><b>Drag</b> a line across the shape — from one side to the other.</li>
+      <li>The closer to a perfect <b>50 : 50</b> split, the better your score.</li>
+      <li><b>48 : 52 or better counts as a win.</b></li>
+      <li>You get <b>one official attempt</b> per day — make it count!</li>
+      <li>Your result is shared automatically — see the <b>Daily</b> and <b>Overall</b> tabs below.</li>
+      <li>Only <b>today's</b> puzzle can be played — use the <b>‹ ›</b> arrows to look back at earlier days and their results.</li>
+    </ul>
+    <p class="muted">A fresh puzzle drops every day at midnight in the chat's chosen timezone.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="webxdc.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var TAU = Math.PI * 2;
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // Day numbering follows the instance's chosen reset timezone (set by the
+  // first opener). A "day" is the local calendar date there, encoded as a
+  // UTC-midnight day index so every device agrees on which day it is.
+  var TZ = null, TODAY = null;
+
+  function dayNumberInTz(tz) {
+    try {
+      var o = {};
+      new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+        .formatToParts(new Date()).forEach(function (p) { o[p.type] = p.value; });
+      return Math.floor(Date.UTC(+o.year, +o.month - 1, +o.day) / 86400000);
+    } catch (e) { return Math.floor(Date.now() / 86400000); }
+  }
+  function msToNextReset(tz) {
+    try {
+      var o = {};
+      new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+        .formatToParts(new Date()).forEach(function (p) { o[p.type] = p.value; });
+      var elapsed = ((+o.hour % 24) * 3600 + (+o.minute) * 60 + (+o.second)) * 1000 + (Date.now() % 1000);
+      return 86400000 - elapsed;
+    } catch (e) {
+      var n = new Date();
+      return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1) - n.getTime();
+    }
+  }
+  function tzOffsetLabel(tz) {
+    try {
+      var p = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" })
+        .formatToParts(new Date()).filter(function (x) { return x.type === "timeZoneName"; })[0];
+      return p ? p.value : "";
+    } catch (e) { return ""; }
+  }
+
+  // ============================ SHAPE GENERATION ============================
+  function normalize(verts, margin) {
+    margin = margin == null ? 0.13 : margin;
+    var minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    verts.forEach(function (v) {
+      if (v.x < minx) minx = v.x; if (v.x > maxx) maxx = v.x;
+      if (v.y < miny) miny = v.y; if (v.y > maxy) maxy = v.y;
+    });
+    var span = Math.max(maxx - minx, maxy - miny) || 1;
+    var scale = (1 - 2 * margin) / span;
+    var cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
+    return verts.map(function (v) {
+      return { x: 0.5 + (v.x - cx) * scale, y: 0.5 + (v.y - cy) * scale };
+    });
+  }
+
+  // Displace each vertex of a closed polygon along its local normal by a
+  // little smooth noise — roughens an otherwise pristine outline.
+  function roughen(pts, amp, rng) {
+    var n = pts.length, ph = rng() * TAU;
+    var k1 = 6 + Math.floor(rng() * 8), k2 = 13 + Math.floor(rng() * 10);
+    return pts.map(function (p, i) {
+      var prev = pts[(i - 1 + n) % n], next = pts[(i + 1) % n];
+      var tx = next.x - prev.x, ty = next.y - prev.y, L = Math.hypot(tx, ty) || 1;
+      var t = i / n * TAU;
+      var d = amp * (Math.sin(k1 * t + ph) + 0.6 * Math.sin(k2 * t));
+      return { x: p.x + (ty / L) * d, y: p.y - (tx / L) * d };
+    });
+  }
+
+  // The unified generator: every shape is a fresh BLEND of ingredients with
+  // randomized weights — a lopsided harmonic base, a handful of lobes (some
+  // carved inward to pinch necks/bays), optional fine roughness, and an
+  // occasional dose of spikiness. No categories; no two alike.
+  function gBlend(rng) {
+    var N = 130, rot = rng() * TAU;
+
+    // 1) low/mid-frequency lopsided base
+    var harms = [
+      { k: 1, a: 0.10 + 0.24 * rng(), p: rng() * TAU },
+      { k: 2, a: 0.06 + 0.16 * rng(), p: rng() * TAU }
+    ];
+    var mid = 2 + Math.floor(rng() * 4);              // 2..5 mid harmonics
+    for (var h = 0; h < mid; h++) {
+      var k = 3 + Math.floor(rng() * 8);
+      harms.push({ k: k, a: (0.45 / k) * (0.3 + 0.9 * rng()), p: rng() * TAU });
+    }
+
+    // 2) lobes — some bulge out, some carve in
+    var lobes = [], nLobes = Math.floor(rng() * 5);   // 0..4
+    for (var l = 0; l < nLobes; l++) {
+      lobes.push({ ang: rng() * TAU, w: 0.22 + rng() * 0.5, amp: (rng() < 0.7 ? 1 : -1) * (0.3 + rng() * 1.0) });
+    }
+
+    // 3) fine roughness (sometimes)
+    var rough = rng() < 0.7 ? (0.02 + 0.05 * rng()) : 0;
+    var rk1 = 8 + Math.floor(rng() * 8), rk2 = 14 + Math.floor(rng() * 10);
+    var rp1 = rng() * TAU, rp2 = rng() * TAU;
+
+    // 4) spikiness (sometimes) — narrow sharp protrusions
+    var spikeAmp = rng() < 0.4 ? (0.25 + rng() * 0.6) : 0;
+    var spikeK = 5 + Math.floor(rng() * 9), spikePh = rng() * TAU, spikeSharp = 4 + Math.floor(rng() * 8);
+
+    var pts = [];
+    for (var i = 0; i < N; i++) {
+      var th = i / N * TAU + rot, r = 1;
+      for (var j = 0; j < harms.length; j++) r += harms[j].a * Math.sin(harms[j].k * th + harms[j].p);
+      for (var m = 0; m < lobes.length; m++) {
+        var dd = Math.atan2(Math.sin(th - lobes[m].ang), Math.cos(th - lobes[m].ang));
+        r += lobes[m].amp * Math.exp(-(dd * dd) / (2 * lobes[m].w * lobes[m].w));
+      }
+      if (rough) r += rough * Math.sin(rk1 * th + rp1) + rough * 0.7 * Math.sin(rk2 * th + rp2);
+      if (spikeAmp) r += spikeAmp * Math.pow(Math.max(0, Math.cos(spikeK * th + spikePh)), spikeSharp);
+      r = Math.max(0.16, r);
+      pts.push({ x: r * Math.cos(th), y: r * Math.sin(th) });
+    }
+    return { verts: normalize(pts), name: "shape" };
+  }
+
+  function gCrescent(rng) {
+    var ri = 0.74 + rng() * 0.16;
+    var dx = 0.40 + rng() * 0.28;
+    var x = (1 - ri * ri + dx * dx) / (2 * dx);
+    x = Math.max(-0.999, Math.min(0.999, x));
+    var yy = Math.sqrt(Math.max(0, 1 - x * x));
+    var phi = Math.atan2(yy, x);
+    var psi = Math.atan2(yy, x - dx);
+    var pts = [], S = 48, t, i;
+    for (i = 0; i <= S; i++) { t = phi + (TAU - 2 * phi) * i / S; pts.push({ x: Math.cos(t), y: Math.sin(t) }); }
+    for (i = 0; i <= S; i++) { t = (TAU - psi) + (2 * psi - TAU) * i / S; pts.push({ x: dx + ri * Math.cos(t), y: ri * Math.sin(t) }); }
+    var rot = rng() * TAU, c = Math.cos(rot), s = Math.sin(rot);
+    pts = pts.map(function (p) { return { x: p.x * c - p.y * s, y: p.x * s + p.y * c }; });
+    return { verts: normalize(roughen(pts, 0.022, rng)), name: "shape" };
+  }
+
+  function gPuzzle(rng) {
+    var rot = rng() * TAU;
+    var corners = [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 }];
+    var pts = [];
+    for (var e = 0; e < 4; e++) {
+      var a = corners[e], b = corners[(e + 1) % 4];
+      pts.push(a);
+      var kind = Math.floor(rng() * 3);
+      if (kind > 0) {
+        var dirx = b.x - a.x, diry = b.y - a.y;
+        var len = Math.hypot(dirx, diry), ux = dirx / len, uy = diry / len;
+        var nx = uy, ny = -ux;
+        var depth = (kind === 1 ? 1 : -1) * (0.28 + rng() * 0.18);
+        var w = 0.20 + rng() * 0.12;
+        var midx = a.x + ux * len * 0.5, midy = a.y + uy * len * 0.5;
+        var m1 = { x: midx - ux * len * w, y: midy - uy * len * w };
+        var m2 = { x: midx + ux * len * w, y: midy + uy * len * w };
+        pts.push(m1);
+        pts.push({ x: m1.x + nx * depth, y: m1.y + ny * depth });
+        pts.push({ x: m2.x + nx * depth, y: m2.y + ny * depth });
+        pts.push(m2);
+      }
+    }
+    var c = Math.cos(rot), s = Math.sin(rot);
+    pts = pts.map(function (p) { return { x: p.x * c - p.y * s, y: p.x * s + p.y * c }; });
+    return { verts: normalize(pts), name: "puzzle piece" };
+  }
+
+  // Spiral arm: a thick band that winds outward — mass is wrapped unevenly,
+  // so the balancing line is genuinely hard to read.
+  function gSpiral(rng) {
+    var turns = 1.15 + rng() * 0.6;
+    var S = 140, rot = rng() * TAU, r0 = 0.10, r1 = 1.0;
+    var outer = [], inner = [];
+    for (var i = 0; i <= S; i++) {
+      var f = i / S;
+      var t = rot + f * turns * TAU;
+      var rad = r0 + (r1 - r0) * f;
+      var w = rad * (0.15 + 0.05 * Math.sin(f * 6 + rot));   // band half-width
+      outer.push({ x: (rad + w) * Math.cos(t), y: (rad + w) * Math.sin(t) });
+      inner.push({ x: (rad - w) * Math.cos(t), y: (rad - w) * Math.sin(t) });
+    }
+    return { verts: normalize(roughen(outer.concat(inner.reverse()), 0.012, rng)), name: "shape" };
+  }
+
+  function buildShape(rng) {
+    // ~80% the unified blend; ~20% structural shapes the blend can't make.
+    var bag = [gBlend, gBlend, gBlend, gBlend, gBlend, gBlend, gBlend, gBlend,
+               gBlend, gBlend, gBlend, gBlend, gCrescent, gSpiral, gPuzzle];
+    return bag[Math.floor(rng() * bag.length)](rng);
+  }
+
+  // ============================== GEOMETRY ==============================
+  function polyArea(p) {
+    var a = 0;
+    for (var i = 0; i < p.length; i++) {
+      var j = (i + 1) % p.length;
+      a += p[i].x * p[j].y - p[j].x * p[i].y;
+    }
+    return Math.abs(a) / 2;
+  }
+  function clipHalf(poly, p0, n) {
+    var out = [], N = poly.length;
+    for (var i = 0; i < N; i++) {
+      var cur = poly[i], nxt = poly[(i + 1) % N];
+      var dc = (cur.x - p0.x) * n.x + (cur.y - p0.y) * n.y;
+      var dn = (nxt.x - p0.x) * n.x + (nxt.y - p0.y) * n.y;
+      if (dc >= 0) out.push(cur);
+      if ((dc >= 0) !== (dn >= 0)) {
+        var t = dc / (dc - dn);
+        out.push({ x: cur.x + t * (nxt.x - cur.x), y: cur.y + t * (nxt.y - cur.y) });
+      }
+    }
+    return out;
+  }
+
+  var shape = null, TOTAL = 0;
+
+  function buildForDay(day) {
+    shape = buildShape(mulberry32((instanceSeed ^ Math.imul(day, 0x9E3779B1)) | 0));
+    TOTAL = polyArea(shape.verts);
+  }
+
+  function evaluateCut(a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var n = { x: dy, y: -dx };
+    var pos = clipHalf(shape.verts, a, n);
+    var neg = clipHalf(shape.verts, a, { x: -n.x, y: -n.y });
+    var ap = polyArea(pos), an = polyArea(neg);
+    var crosses = ap > 1e-6 && an > 1e-6;
+    var minority = Math.min(ap, an) / TOTAL * 100;
+    return { minority: minority, posPoly: pos, negPoly: neg, crosses: crosses, ap: ap, an: an };
+  }
+
+  // ============================== RENDERING ==============================
+  var cv = $("board"), ctx = cv.getContext("2d");
+  var SIZE = 640;
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function toPx(p) { return { x: p.x * SIZE, y: p.y * SIZE }; }
+
+  function fillPoly(poly, color) {
+    if (poly.length < 3) return;
+    ctx.beginPath();
+    var q = toPx(poly[0]); ctx.moveTo(q.x, q.y);
+    for (var i = 1; i < poly.length; i++) { q = toPx(poly[i]); ctx.lineTo(q.x, q.y); }
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+  }
+
+  function strokePoly(poly) {
+    if (poly.length < 2) return;
+    ctx.lineJoin = "round"; ctx.lineWidth = 3; ctx.strokeStyle = css("--accent-dark");
+    ctx.beginPath();
+    var s = toPx(poly[0]); ctx.moveTo(s.x, s.y);
+    for (var i = 1; i < poly.length; i++) { var q = toPx(poly[i]); ctx.lineTo(q.x, q.y); }
+    ctx.closePath(); ctx.stroke();
+  }
+
+  var splitAnim = null;
+  function cancelSplit() { if (splitAnim) { cancelAnimationFrame(splitAnim); splitAnim = null; } }
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+  // Pop the two halves apart along the cut's normal, then settle to a small gap.
+  function animateSplit(cut) {
+    cancelSplit();
+    var ev = evaluateCut(cut.a, cut.b);
+    var dx = cut.b.x - cut.a.x, dy = cut.b.y - cut.a.y, L = Math.hypot(dx, dy) || 1;
+    var n = { x: dy / L, y: -dx / L };          // unit normal; posPoly sits on the +n side
+    var POP = 28, REST = 6, popDur = 220, settleDur = 280, total = popDur + settleDur;
+    var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
+    function frame(now) {
+      var el = now - t0, gap;
+      if (el < popDur) gap = POP * easeOutCubic(el / popDur);
+      else if (el < total) gap = POP + (REST - POP) * easeOutCubic((el - popDur) / settleDur);
+      else gap = REST;
+      ctx.clearRect(0, 0, SIZE, SIZE);
+      ctx.save(); ctx.translate(n.x * gap, n.y * gap);
+      fillPoly(ev.posPoly, css("--halfA")); strokePoly(ev.posPoly); ctx.restore();
+      ctx.save(); ctx.translate(-n.x * gap, -n.y * gap);
+      fillPoly(ev.negPoly, css("--halfB")); strokePoly(ev.negPoly); ctx.restore();
+      if (el < total) splitAnim = requestAnimationFrame(frame);
+      else splitAnim = null;
+    }
+    splitAnim = requestAnimationFrame(frame);
+  }
+
+  function draw(cut) {
+    cancelSplit();
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    if (!shape) return;
+    if (cut) {
+      var ev = evaluateCut(cut.a, cut.b);
+      fillPoly(ev.posPoly, css("--halfA"));
+      fillPoly(ev.negPoly, css("--halfB"));
+    } else {
+      fillPoly(shape.verts, css("--halfA"));
+    }
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = css("--accent-dark");
+    ctx.beginPath();
+    var s = toPx(shape.verts[0]); ctx.moveTo(s.x, s.y);
+    for (var i = 1; i < shape.verts.length; i++) { var q = toPx(shape.verts[i]); ctx.lineTo(q.x, q.y); }
+    ctx.closePath(); ctx.stroke();
+    if (cut) {
+      var a = cut.a, b = cut.b;
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+      var p1 = toPx({ x: a.x - dx * 2, y: a.y - dy * 2 });
+      var p2 = toPx({ x: a.x + dx * 2, y: a.y + dy * 2 });
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = css("--cut");
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // =============================== INPUT ===============================
+  var dragging = false, startPt = null, lastCut = null;
+
+  function relPoint(e) {
+    var r = cv.getBoundingClientRect();
+    var t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    return { x: (t.clientX - r.left) / r.width, y: (t.clientY - r.top) / r.height };
+  }
+  function onDown(e) {
+    if (!gameStarted || viewDay !== TODAY) return;   // only today's puzzle is playable
+    if (e.cancelable) e.preventDefault();
+    cancelSplit();
+    dragging = true;
+    startPt = relPoint(e);
+    lastCut = null;
+    $("hint").style.opacity = "0";
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    if (e.cancelable) e.preventDefault();
+    var p = relPoint(e);
+    if (Math.hypot(p.x - startPt.x, p.y - startPt.y) < 0.012) return;
+    lastCut = { a: startPt, b: p };
+    draw(lastCut);
+    if (e.type.indexOf("touch") !== 0 && e.buttons === 0) onUp(e);
+  }
+  function onUp(e) {
+    if (!dragging) return;
+    dragging = false;
+    if (!lastCut) { $("hint").style.opacity = "1"; return; }
+    var ev = evaluateCut(lastCut.a, lastCut.b);
+    if (!ev.crosses) {
+      draw(null); lastCut = null;
+      $("hint").style.opacity = "1";
+      toast("Drag right across the shape to make a cut.");
+      return;
+    }
+    animateSplit(lastCut);
+    commitCut(ev.minority);
+  }
+  cv.addEventListener("pointerdown", onDown);
+  cv.addEventListener("mousedown", onDown);
+  cv.addEventListener("touchstart", onDown, { passive: false });
+  ["pointermove", "mousemove", "touchmove"].forEach(function (t) {
+    window.addEventListener(t, onMove, { passive: false });
+    document.addEventListener(t, onMove, { passive: false });
+  });
+  ["pointerup", "pointercancel", "mouseup", "touchend", "touchcancel"].forEach(function (t) {
+    window.addEventListener(t, onUp);
+    document.addEventListener(t, onUp);
+  });
+
+  // ========================= PERSONAL STATS (local) =========================
+  // Source of truth is the per-day map; aggregates are derived on demand.
+  var SKEY = "cutle-stats-v1";
+  function loadStats() {
+    try { return JSON.parse(localStorage.getItem(SKEY)) || null; } catch (e) { return null; }
+  }
+  var stats = loadStats() || { days: {} };
+  if (!stats.days) stats.days = {};
+  function saveStats() { localStorage.setItem(SKEY, JSON.stringify(stats)); }
+
+  var WIN = 48;
+
+  // ====================== SHARED RESULTS (leaderboards) ======================
+  var xdc = window.webxdc;
+  var results = {};            // addr -> { name, days: { [day]: { score, win } } }
+  var instanceSeed = null;     // shared across everyone in THIS app instance
+  var firstDay = TODAY;        // day this instance was created (lower bound)
+  var viewDay = TODAY;         // the day currently being viewed
+  var gameStarted = false;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function selfAddr() { return (xdc && xdc.selfAddr) || "self"; }
+
+  function recordResult(addr, name, day, score, win) {
+    var r = results[addr] || (results[addr] = { name: name, days: {} });
+    if (name) r.name = name;
+    // The leaderboard records the FIRST cut only — ignore any later updates.
+    if (!r.days[day]) r.days[day] = { score: score, win: win };
+  }
+
+  // Simple, broad scoring: 3 pts for a win, 2 for a close cut, 1 for showing
+  // up. (s = minority %, 0..50)
+  function pointsFor(s) {
+    return s >= WIN ? 3 : s >= 45 ? 2 : 1;
+  }
+
+  function dailyRows(day) {
+    var rows = [];
+    for (var a in results) {
+      var d = results[a].days[day];
+      if (d) rows.push({ addr: a, name: results[a].name, score: d.score, win: d.win });
+    }
+    rows.sort(function (x, y) { return y.score - x.score; });
+    return rows;
+  }
+
+  function overallRows() {
+    var allDays = {};
+    for (var a in results) for (var dy in results[a].days) allDays[dy] = 1;
+    var winnerOf = {};
+    Object.keys(allDays).forEach(function (dy) {
+      var r = dailyRows(Number(dy));
+      winnerOf[dy] = r.length ? r[0].addr : null;
+    });
+    var rows = [];
+    for (var ad in results) {
+      var rec = results[ad], dys = Object.keys(rec.days);
+      if (!dys.length) continue;
+      var wins = 0, pts = 0, sum = 0, trophies = 0;
+      dys.forEach(function (dy) {
+        var d = rec.days[dy];
+        if (d.win) wins++;
+        pts += pointsFor(d.score);
+        sum += d.score;
+        if (winnerOf[dy] === ad) trophies++;
+      });
+      rows.push({
+        addr: ad, name: rec.name, played: dys.length, wins: wins,
+        avg: sum / dys.length, trophies: trophies, streak: playStreak(rec), pts: pts
+      });
+    }
+    rows.sort(function (x, y) { return y.pts - x.pts || y.avg - x.avg || y.played - x.played; });
+    return rows;
+  }
+
+  function playStreak(rec) {
+    var s = 0, d = TODAY;
+    if (!rec.days[d]) d--;            // today still pending — don't break the streak
+    while (d >= firstDay && rec.days[d]) { s++; d--; }
+    return s;
+  }
+
+  // ============================== UI / VIEW ==============================
+  function dayLabel(day) {
+    var dt = new Date(day * 86400000);
+    var s = dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+    if (day === TODAY) return s + ' · <span class="today">today</span>';
+    return s;
+  }
+
+  function ratioHtml(score) {
+    return '<div class="ratio">' + score.toFixed(1) + '<span class="sep">:</span>' + (100 - score).toFixed(1) + '</div>';
+  }
+  function verdictText(score) {
+    if (score >= 49.5) return ["Perfect cut! ✂️", "good"];
+    if (score >= WIN) return ["Win!", "good"];
+    return ["Not quite — aim for 48 or better", "bad"];
+  }
+
+  // mode: "official" | "practice" | "history" | "empty"
+  function paintResult(shown, mode) {
+    if (mode === "empty") { $("result").innerHTML = ""; return; }
+    var v = verdictText(shown);
+    var rec = stats.days[viewDay];
+    var sub;
+    if (mode === "practice") {
+      sub = "Practice · your result: " + rec.first.toFixed(1) +
+            (rec.best > rec.first + 0.05 ? " · best: " + rec.best.toFixed(1) : "");
+    } else if (mode === "history") {
+      sub = (viewDay === TODAY ? "You already played today" : "Your result") +
+            (rec.best > rec.first + 0.05 ? " · best: " + rec.best.toFixed(1) : "");
+    } else {
+      sub = shown >= WIN ? "Recorded ✓" : "Recorded";
+    }
+    $("result").innerHTML = ratioHtml(shown) +
+      '<div class="verdict ' + v[1] + '">' + v[0] + '</div>' +
+      '<div class="subnote">' + sub + '</div>';
+  }
+
+  function refreshView() {
+    $("puzzleNo").textContent = "#" + (viewDay - firstDay + 1);
+    $("dateLabel").innerHTML = dayLabel(viewDay);
+    $("navPrev").disabled = (viewDay <= firstDay);
+    $("navNext").disabled = (viewDay >= TODAY);
+
+    var rec = stats.days[viewDay];
+    var isToday = (viewDay === TODAY);
+    if (rec) paintResult(rec.first, "history");
+    else paintResult(0, "empty");
+
+    if (!isToday) {
+      // past days are view-only — only today's puzzle can be played
+      $("hint").textContent = rec ? "" : "You didn't play this day · view only";
+      $("btnRetry").disabled = true;
+    } else if (rec) {
+      $("hint").textContent = "Drag to keep practicing ✂️";
+      $("btnRetry").disabled = false;
+    } else {
+      $("hint").textContent = "Drag a straight line across the shape ✂️";
+      $("btnRetry").disabled = true;
+    }
+    $("hint").style.opacity = "1";
+  }
+
+  function goToDay(day) {
+    viewDay = Math.max(firstDay, Math.min(TODAY, day));
+    lastCut = null;
+    buildForDay(viewDay);
+    draw(null);
+    refreshView();
+    renderDaily();
+  }
+
+  function commitCut(minority) {
+    var rec = stats.days[viewDay];
+    if (!rec) {
+      stats.days[viewDay] = { first: minority, best: minority };
+      saveStats();
+      paintResult(minority, "official");
+      $("btnRetry").disabled = false;
+      broadcastScore(viewDay, minority);
+    } else {
+      // practice cut: updates only your local "best" — never the leaderboard
+      if (minority > rec.best) { rec.best = minority; saveStats(); }
+      paintResult(minority, "practice");
+    }
+    renderDaily();
+  }
+
+  // --------- leaderboard rendering ---------
+  function medal(i) { return i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : ""; }
+
+  function renderDaily() {
+    var rows = dailyRows(viewDay);
+    $("dailyDate").innerHTML = (viewDay === TODAY ? "Today" : dayLabel(viewDay)) + " · results";
+    $("lbCount").textContent = rows.length ? "(" + rows.length + ")" : "";
+    if (!rows.length) {
+      $("lb").innerHTML = '<div class="lbempty">No results yet for this day.</div>';
+      return;
+    }
+    var me = selfAddr();
+    $("lb").innerHTML = rows.map(function (r, i) {
+      var mine = r.addr === me ? " me" : "";
+      var rk = medal(i) || (i + 1);
+      return '<div class="lbrow' + mine + '">' +
+        '<span class="rank">' + rk + '</span>' +
+        '<span class="nm">' + esc(r.name) + (mine ? " (you)" : "") + (r.win ? " ✂️" : "") + '</span>' +
+        '<span class="sc">' + r.score.toFixed(1) + '<span class="sep"> : </span>' + (100 - r.score).toFixed(1) + '</span></div>';
+    }).join("");
+  }
+
+  function renderOverall() {
+    var rows = overallRows();
+    if (!rows.length) {
+      $("overall").innerHTML = '<div class="lbempty">No results yet.</div>';
+      $("scoreHelp").textContent = "";
+      return;
+    }
+    var me = selfAddr();
+    var html = '<table class="otable"><thead><tr>' +
+      '<th class="l">#</th><th class="l">Player</th><th>Won</th><th>Avg</th>' +
+      '<th>🏆</th><th>🔥</th><th>Pts</th></tr></thead><tbody>';
+    rows.forEach(function (r, i) {
+      var mine = r.addr === me ? ' class="me"' : "";
+      html += '<tr' + mine + '>' +
+        '<td class="l rk">' + (i + 1) + '</td>' +
+        '<td class="l pnm">' + esc(r.name) + (r.addr === me ? " (you)" : "") + '</td>' +
+        '<td>' + r.wins + '/' + r.played + '</td>' +
+        '<td>' + r.avg.toFixed(1) + '</td>' +
+        '<td>' + (r.trophies || "·") + '</td>' +
+        '<td>' + (r.streak || "·") + '</td>' +
+        '<td class="pts">' + r.pts + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    $("overall").innerHTML = html;
+    $("scoreHelp").innerHTML =
+      "Each day: <b>3 pts</b> for a win (48:52 or better), <b>2 pts</b> for a close cut (45+), " +
+      "<b>1 pt</b> for taking part. 🏆 = days you topped the board · 🔥 = current daily streak.";
+  }
+
+  function overallOpen() { return $("overallScreen").classList.contains("show"); }
+  function refreshBoards() {
+    renderDaily();
+    if (overallOpen()) renderOverall();
+  }
+
+  // ---------- tabs: Daily stays inline, Overall grows to full screen ----------
+  function openOverall() {
+    $("ovPuzzleNo").textContent = $("puzzleNo").textContent;
+    renderOverall();
+    $("overallScreen").classList.add("show");
+    $("tabDaily").classList.remove("active");
+    $("tabOverall").classList.add("active");
+    window.scrollTo(0, 0);
+  }
+  function closeOverall() {
+    $("overallScreen").classList.remove("show");
+    $("tabOverall").classList.remove("active");
+    $("tabDaily").classList.add("active");
+  }
+  $("tabOverall").addEventListener("click", openOverall);
+  $("tabDaily").addEventListener("click", closeOverall);
+  $("ovTabDaily").addEventListener("click", closeOverall);
+  $("ovClose").addEventListener("click", closeOverall);
+
+  // ---------- date navigation ----------
+  $("navPrev").addEventListener("click", function () { if (gameStarted) goToDay(viewDay - 1); });
+  $("navNext").addEventListener("click", function () { if (gameStarted) goToDay(viewDay + 1); });
+
+  // ---------- practice button ----------
+  $("btnRetry").addEventListener("click", function () {
+    lastCut = null; draw(null);
+    $("hint").textContent = "Practice mode — drag a cut ✂️";
+    $("hint").style.opacity = "1";
+  });
+
+  // ---------- modals ----------
+  function openOv(id) { $(id).classList.add("show"); }
+  function closeOv(el) { el.classList.remove("show"); }
+  document.querySelectorAll("[data-close]").forEach(function (b) {
+    b.addEventListener("click", function () { closeOv(b.closest(".overlay")); });
+  });
+  document.querySelectorAll(".overlay").forEach(function (o) {
+    o.addEventListener("click", function (e) { if (e.target === o) closeOv(o); });
+  });
+  $("btnHelp").addEventListener("click", function () { openOv("ovHelp"); });
+
+  // ---------- first-opener setup screen (pick the reset timezone) ----------
+  function buildTzOptions() {
+    var sel = $("tzSelect");
+    var userTz = "UTC";
+    try { userTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (e) {}
+    var common = ["UTC", "America/Los_Angeles", "America/Denver", "America/Chicago",
+      "America/New_York", "America/Sao_Paulo", "Europe/London", "Europe/Paris", "Europe/Berlin",
+      "Europe/Athens", "Africa/Johannesburg", "Asia/Kolkata", "Asia/Dubai", "Asia/Shanghai",
+      "Asia/Tokyo", "Australia/Sydney", "Pacific/Auckland"];
+    function opt(tz, label) {
+      var off = tzOffsetLabel(tz), o = document.createElement("option");
+      o.value = tz;
+      o.textContent = label + (off ? " (" + off + ")" : "");
+      sel.appendChild(o);
+    }
+    opt(userTz, "Your timezone — " + userTz.replace(/_/g, " ").split("/").pop());
+    common.forEach(function (tz) { if (tz !== userTz) opt(tz, tz.replace(/_/g, " ")); });
+    sel.value = userTz;
+  }
+  function updateTzHint() {
+    var tz = $("tzSelect").value;
+    var next = new Date(Date.now() + msToNextReset(tz));
+    var lab = next.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+    $("tzHint").textContent = "Puzzles reset at midnight " + tz.replace(/_/g, " ") + " — next one " + lab + " your time.";
+  }
+  function showSetup() {
+    if (!$("tzSelect").options.length) buildTzOptions();
+    updateTzHint();
+    $("setupScreen").classList.add("show");
+  }
+  function hideSetup() { $("setupScreen").classList.remove("show"); }
+  $("tzSelect").addEventListener("change", updateTzHint);
+  $("startDaily").addEventListener("click", function () {
+    var tz = $("tzSelect").value;
+    var seed = (Math.random() * 0x7fffffff) | 0;
+    var sd = dayNumberInTz(tz);
+    if (xdc && xdc.sendUpdate) {
+      xdc.sendUpdate({ payload: { type: "cutle-config", seed: seed, tz: tz, startDay: sd } }, "cutle-config");
+    }
+    startOnce(seed, sd, tz, true);
+  });
+
+  // ====================== WEBXDC: seed + shared results ======================
+  function startOnce(seed, startDay, tz, isFirst) {
+    if (gameStarted) return;
+    gameStarted = true;
+    instanceSeed = seed;
+    TZ = tz || "UTC";
+    TODAY = dayNumberInTz(TZ);
+    firstDay = Math.min(startDay == null ? TODAY : startDay, TODAY);
+    hideSetup();
+    goToDay(TODAY);
+    refreshBoards();
+    tick();
+  }
+
+  function puzzleIndex(day) { return day - firstDay + 1; }
+
+  // Chat bubble summary, e.g. "Cara · 50.0:50.0 · 3 players | Overall: Alice (20 pts)"
+  function chatSummary(day) {
+    var d = dailyRows(day), o = overallRows(), s;
+    if (d.length) {
+      var L = d[0];
+      s = L.name + " · " + L.score.toFixed(1) + ":" + (100 - L.score).toFixed(1) +
+          " · " + d.length + (d.length === 1 ? " player" : " players");
+    } else {
+      s = "No results yet";
+    }
+    if (o.length) s += " | Overall: " + o[0].name + " (" + o[0].pts + " pts)";
+    return s;
+  }
+
+  function broadcastScore(day, score) {
+    var win = score >= WIN;
+    var name = (xdc && xdc.selfName) || "Someone";
+    var addr = selfAddr();
+
+    // Who led this day BEFORE our cut? Used to detect overtaking the lead.
+    var priorRows = dailyRows(day);
+    var priorLeader = priorRows.length ? priorRows[0] : null;
+    var tookLead = priorLeader && priorLeader.addr !== addr && score > priorLeader.score;
+
+    recordResult(addr, name, day, score, win);
+    refreshBoards();
+
+    if (xdc && xdc.sendUpdate) {
+      // `info` posts a silent info message into the chat for each completed cut.
+      var info = name + " cut #" + puzzleIndex(day) + " — " +
+                 score.toFixed(1) + " : " + (100 - score).toFixed(1) + (win ? " ✂️" : "");
+      var update = {
+        payload: { type: "cutle-score", day: day, addr: addr, name: name, score: score, win: win },
+        info: info,
+        document: "#" + puzzleIndex(day),
+        summary: chatSummary(day)
+      };
+      // Notify the chat only when a cut OVERTAKES the previous leader — never
+      // for the first person to play (there's no one to overtake).
+      if (tookLead) {
+        update.notify = { "*": name + " took the lead on #" + puzzleIndex(day) + " — " +
+                          score.toFixed(1) + " : " + (100 - score).toFixed(1) };
+      }
+      xdc.sendUpdate(update, "cutle-score-" + day);
+    }
+  }
+
+  function onUpdate(u) {
+    var p = u && u.payload;
+    if (!p) return;
+    if (p.type === "cutle-config") {
+      if (instanceSeed === null) startOnce(p.seed, p.startDay, p.tz, false);
+    } else if (p.type === "cutle-score") {
+      recordResult(p.addr, p.name, p.day, p.score, p.win);
+      if (gameStarted) refreshBoards();
+    }
+  }
+
+  if (xdc && xdc.setUpdateListener) {
+    xdc.setUpdateListener(onUpdate, 0).then(function () {
+      if (instanceSeed === null) showSetup();   // first opener picks the reset timezone
+    });
+  } else {
+    showSetup();
+  }
+
+  // ---------- countdown (to next reset in the instance timezone) ----------
+  function pad2(x) { return (x < 10 ? "0" : "") + x; }
+  function tick() {
+    if (!TZ) { $("cd").textContent = "—"; return; }
+    var ms = msToNextReset(TZ);
+    $("cd").textContent = pad2(Math.floor(ms / 3600000)) + ":" +
+      pad2(Math.floor(ms % 3600000 / 60000)) + ":" + pad2(Math.floor(ms % 60000 / 1000));
+  }
+  setInterval(tick, 1000);
+
+  // ---------- toast ----------
+  var toastT;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+
+  if (window.matchMedia) {
+    try {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { draw(lastCut); });
+    } catch (e) { /* older WebViews */ }
+  }
+})();
+</script>
+</body>
+</html>
