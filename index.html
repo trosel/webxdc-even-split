@@ -71,6 +71,9 @@
   .datelabel { font-size: 14px; font-weight: 600; min-width: 180px; text-align: center; }
   .datelabel .today { color: var(--accent-dark); }
 
+  .presence { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .presence .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--good); margin-right: 6px; vertical-align: middle; }
+
   .shapeName { text-align: center; font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
   .shapeName b { color: var(--ink); }
 
@@ -207,6 +210,8 @@
     <span class="datelabel" id="dateLabel">…</span>
     <button class="navbtn" id="navNext" title="Next day">›</button>
   </div>
+
+  <div class="presence" id="presence" style="display:none"></div>
 
   <div class="shapeName">Cut the shape into two <b>equal halves</b></div>
 
@@ -992,6 +997,37 @@
     goToDay(TODAY);
     refreshBoards();
     tick();
+    startPresence();
+  }
+
+  // ---- live presence (who's in the app right now, via realtime channel) ----
+  var presence = {}, rtChannel = null;
+  function startPresence() {
+    if (rtChannel || !xdc || !xdc.joinRealtimeChannel) return;
+    try { rtChannel = xdc.joinRealtimeChannel(); } catch (e) { return; }
+    var enc = new TextEncoder(), dec = new TextDecoder();
+    rtChannel.setListener(function (bytes) {
+      try {
+        var m = JSON.parse(dec.decode(bytes));
+        if (m && m.t === "p" && m.a !== selfAddr()) { presence[m.a] = { name: m.n, last: Date.now() }; renderPresence(); }
+      } catch (e) {}
+    });
+    function ping() { try { rtChannel.send(enc.encode(JSON.stringify({ t: "p", a: selfAddr(), n: (xdc && xdc.selfName) || "Someone" }))); } catch (e) {} }
+    ping();
+    setInterval(ping, 4000);
+    setInterval(function () {
+      var now = Date.now(), changed = false;
+      for (var a in presence) if (now - presence[a].last > 12000) { delete presence[a]; changed = true; }
+      if (changed) renderPresence();
+    }, 3000);
+  }
+  function renderPresence() {
+    var el = $("presence"); if (!el) return;
+    var names = []; for (var a in presence) names.push(presence[a].name);
+    if (!names.length) { el.style.display = "none"; el.textContent = ""; return; }
+    el.style.display = "";
+    el.innerHTML = '<span class="dot"></span>' +
+      (names.length <= 3 ? esc(names.join(", ")) : (names.length + " others")) + " here now";
   }
 
   function puzzleIndex(day) { return day - firstDay + 1; }
@@ -1050,7 +1086,18 @@
       if (instanceSeed === null) startOnce(p.seed, p.startDay, p.tz, false);
     } else if (p.type === "cutle-score") {
       recordResult(p.addr, p.name, p.day, p.score, p.win);
-      if (gameStarted) refreshBoards();
+      // Multi-device: adopt our OWN result synced from another device, so this
+      // device also shows the day as played and won't broadcast a duplicate.
+      var adopted = false;
+      if (p.addr === selfAddr() && !stats.days[p.day]) {
+        stats.days[p.day] = { first: p.score, best: p.score };
+        saveStats();
+        adopted = true;
+      }
+      if (gameStarted) {
+        if (adopted && p.day === viewDay) goToDay(viewDay);   // re-render now-played day
+        refreshBoards();
+      }
     }
   }
 
