@@ -1075,11 +1075,15 @@
         document: "#" + puzzleIndex(day),
         summary: chatSummary(day)
       };
-      // Notify the chat only when a cut OVERTAKES the previous leader — never
-      // for the first person to play (there's no one to overtake).
+      // Overtaking the leader REPLACES the silent info line with a celebratory one
+      // (so it shows in the chat) and fires a push notification — never for the
+      // first person to play. The `notify` field alone is only a push; the `info`
+      // field is what posts the visible message.
       if (tookLead) {
-        update.notify = { "*": name + " took the lead on #" + puzzleIndex(day) + " — " +
-                          score.toFixed(1) + " : " + (100 - score).toFixed(1) };
+        var leadText = "🏆 " + name + " is now leading Even Split #" + puzzleIndex(day) + " — " +
+                       score.toFixed(1) + " : " + (100 - score).toFixed(1);
+        update.info = leadText;
+        update.notify = { "*": leadText };
       }
       xdc.sendUpdate(update, "cutle-score-" + day);
     }
