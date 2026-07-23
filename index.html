@@ -782,7 +782,9 @@
       dys.forEach(function (dy) { var d = rec.days[dy]; if (d.win) wins++; pts += pointsFor(d.score); sum += d.score; if (winnerOf[dy] === ad) trophies++; });
       rows.push({ addr: ad, name: rec.name, played: dys.length, wins: wins, avg: sum / dys.length, trophies: trophies, streak: streak(rec), pts: pts });
     }
-    rows.sort(function (x, y) { return y.pts - x.pts || y.avg - x.avg || y.played - x.played; });
+    // Rank by AVERAGE (not total), so someone who skips days but plays well still
+    // places on merit. Ties: more days played, then total.
+    rows.sort(function (x, y) { return y.avg - x.avg || y.played - x.played || y.pts - x.pts; });
     return rows;
   }
 
